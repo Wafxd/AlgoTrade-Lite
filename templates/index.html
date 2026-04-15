@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Analyzer Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        /* Kustom scrollbar biar rapi kalau teksnya panjang */
+        .left-panel::-webkit-scrollbar { width: 6px; }
+        .left-panel::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 10px; }
+    </style>
+</head>
+
+<body class="min-h-screen p-6 font-sans">
+
+    <div class="max-w-7xl mx-auto">
+        <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div><h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">Teknikal Analisa Saham</h1></div>
+            <form method="POST" class="flex flex-wrap gap-3 w-full md:w-auto">
+                <input type="text" name="ticker" placeholder="Cth: BUMI atau GOTO" required class="bg-slate-900 border border-slate-600 text-white text-sm rounded-lg focus:ring-blue-500 block w-64 p-2.5 uppercase">
+                <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5">Analisis</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="p-4 mb-6 text-sm text-red-400 bg-red-900/30 rounded-lg border border-red-800" role="alert"><span class="font-bold">Error:</span> {{ error }}</div>
+        {% endif %}
+
+        {% if data and not error %}
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            <div class="col-span-1 flex flex-col gap-4 left-panel overflow-y-auto" style="max-height: 650px; padding-right: 4px;">
+                
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-xl font-bold mb-2 text-white border-b border-slate-700 pb-2">{{ data.ticker }}</h2>
+                    <div class="text-3xl font-black text-emerald-400 mb-4">Rp {{ "{:,.0f}".format(data.close) }}</div>
+
+                    <div class="mb-4">
+                        <div class="text-xs text-slate-400 uppercase font-semibold">Prediksi Logis</div>
+                        <div class="text-sm font-medium {{ data.status_color }} mt-1 leading-relaxed">>> {{ data.status_text }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400 uppercase font-semibold">Strategi / Rekomendasi</div>
+                        <div class="text-sm font-medium text-white mt-1 leading-relaxed">>> {{ data.strategi_text }}</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider">Status Indikator</h3>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm text-slate-400">RSI (14)</span>
+                        <span class="font-bold text-white text-lg">{{ "{:.2f}".format(data.rsi) }}</span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-slate-400 block mb-1">MACD Status</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold {% if data.cross_type == 'Golden Cross' %}text-green-400{% else %}text-red-400{% endif %}">
+                                {{ data.cross_type }}
+                            </span>
+                        </div>
+                        <span class="text-xs text-slate-500 block mt-1">(Terjadi {{ data.cross_days }} hari yang lalu)</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2 mb-4 uppercase tracking-wider">Peta Support & Resistance</h3>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-red-400 font-bold">Resis 2 (Jauh)</span>
+                            <span class="font-bold text-white">Rp {{ "{:,.0f}".format(data.r2) }}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 italic">Target TP Maksimal</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-orange-400 font-bold">Resis 1 (Dekat)</span>
+                            <span class="font-bold text-white">Rp {{ "{:,.0f}".format(data.r1) }}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 italic">Target TP / Rawan Koreksi</div>
+                    </div>
+
+                    <div class="my-4 py-2 bg-slate-900/50 rounded border border-slate-700 px-3 border-l-4 border-l-blue-500">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-300 uppercase font-semibold">Harga Saat Ini</span>
+                            <span class="font-bold text-blue-400">Rp {{ "{:,.0f}".format(data.close) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-emerald-400 font-bold">Support 1 (Dekat)</span>
+                            <span class="font-bold text-white">Rp {{ "{:,.0f}".format(data.s1) }}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 italic">Area Cicil Beli / Bantalan Pertama</div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-green-500 font-bold">Support 2 (Kuat)</span>
+                            <span class="font-bold text-white">Rp {{ "{:,.0f}".format(data.s2) }}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 italic">Area Serok Bawah / Batas Wajib Cut Loss</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-span-1 lg:col-span-3 bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700 overflow-hidden" style="height: 650px;">
+                <div class="tradingview-widget-container" style="height: 100%; width: 100%;">
+                    <div id="tradingview_chart" style="height: 100%; width: 100%;"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                    <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "{{ data.tv_symbol }}",
+                            "interval": "D",
+                            "timezone": "Asia/Jakarta",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "id",
+                            "enable_publishing": false,
+                            "backgroundColor": "rgba(30, 41, 59, 1)",
+                            "gridColor": "rgba(51, 65, 85, 0.5)",
+                            "hide_top_toolbar": false,
+                            "hide_legend": false,
+                            "hide_side_toolbar": false,
+                            "allow_symbol_change": true,
+                            "save_image": true,
+                            "container_id": "tradingview_chart",
+                            "studies": ["MACD@tv-basicstudies", "RSI@tv-basicstudies", "BB@tv-basicstudies"]
+                        });
+                    </script>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-6 bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+            <h2 class="text-xl font-bold mb-4 text-white border-b border-slate-700 pb-2">Visualisasi Support & Resistance (100 Hari Terakhir)</h2>
+            <div id="snr-chart" style="height: 400px; width: 100%;"></div>
+        </div>
+
+        {% endif %}
+    </div>
+
+    <script>
+        {% if data and data.dates %}
+        var options = {
+            series: [{ name: 'Harga Close', data: {{ data.closes | tojson }} }],
+            chart: { type: 'area', height: 400, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
+            colors: ['#3b82f6'],
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05, stops: [0, 100] } },
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 2 },
+            xaxis: { categories: {{ data.dates | tojson }}, labels: { style: { colors: '#94a3b8' } }, tooltip: { enabled: false }, tickAmount: 10 },
+            yaxis: { labels: { style: { colors: '#94a3b8' }, formatter: function (value) { return "Rp " + value.toLocaleString("id-ID"); } } },
+            theme: { mode: 'dark' },
+            annotations: {
+                yaxis: [
+                    { y: {{ data.r2 }}, borderColor: '#ef4444', strokeDashArray: 4, label: { borderColor: '#ef4444', style: { color: '#fff', background: '#ef4444', fontWeight: 'bold' }, text: 'Resis 2' } },
+                    { y: {{ data.r1 }}, borderColor: '#f97316', strokeDashArray: 4, label: { borderColor: '#f97316', style: { color: '#fff', background: '#f97316', fontWeight: 'bold' }, text: 'Resis 1' } },
+                    { y: {{ data.s1 }}, borderColor: '#10b981', strokeDashArray: 4, label: { borderColor: '#10b981', style: { color: '#fff', background: '#10b981', fontWeight: 'bold' }, text: 'Support 1' } },
+                    { y: {{ data.s2 }}, borderColor: '#22c55e', strokeDashArray: 4, label: { borderColor: '#22c55e', style: { color: '#fff', background: '#22c55e', fontWeight: 'bold' }, text: 'Support 2' } }
+                ]
+            }
+        };
+        var chart = new ApexCharts(document.querySelector("#snr-chart"), options);
+        chart.render();
+        {% endif %}
+    </script>
+</body>
+</html>
