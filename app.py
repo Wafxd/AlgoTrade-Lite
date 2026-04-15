@@ -6,7 +6,7 @@ from scipy.signal import argrelextrema
 
 app = Flask(__name__)
 
-def analyze_stock(ticker, period="6mo"):
+def analyze_stock(ticker, period="2y"): # <- Ubah jadi 2y atau max
     # Download data
     df = yf.download(ticker, period=period, progress=False)
     if df.empty:
