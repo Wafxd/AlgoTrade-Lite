@@ -7,21 +7,40 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
+        /* MENCEGAH SCROLL HORIZONTAL DI HP */
+        html, body {
+            overflow-x: hidden;
+            width: 100vw;
+            position: relative;
+        }
         body { background-color: #0f172a; color: #f8fafc; }
-        /* Kustom scrollbar biar rapi kalau teksnya panjang */
-        .left-panel::-webkit-scrollbar { width: 6px; }
-        .left-panel::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 10px; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .market-open-dot { animation: pulse-green 2s infinite; }
+        
+        .resize-y::-webkit-resizer {
+            background-color: #475569;
+            border-radius: 2px;
+        }
     </style>
 </head>
 
-<body class="min-h-screen p-6 font-sans">
+<body class="min-h-screen p-3 md:p-6 font-sans">
 
     <div class="max-w-7xl mx-auto">
-        <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="bg-slate-800 p-4 md:p-6 rounded-xl shadow-lg border border-slate-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
             <div><h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">Teknikal Analisa Saham</h1></div>
-            <form method="POST" class="flex flex-wrap gap-3 w-full md:w-auto">
-                <input type="text" name="ticker" placeholder="Cth: BUMI atau GOTO" required class="bg-slate-900 border border-slate-600 text-white text-sm rounded-lg focus:ring-blue-500 block w-64 p-2.5 uppercase">
-                <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5">Analisis</button>
+            
+            <form method="POST" class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <input type="text" name="ticker" placeholder="Cth: BUMI atau GOTO" required class="bg-slate-900 border border-slate-600 text-white text-sm rounded-lg focus:ring-blue-500 block w-full sm:w-64 p-2.5 uppercase">
+                <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 w-full sm:w-auto">Analisis</button>
             </form>
         </div>
 
@@ -30,42 +49,28 @@
         {% endif %}
 
         {% if data and not error %}
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="flex flex-col lg:flex-row gap-6 items-stretch w-full">
 
-            <div class="col-span-1 flex flex-col gap-4 left-panel overflow-y-auto" style="max-height: 650px; padding-right: 4px;">
+            <div class="w-full lg:w-1/4 xl:w-[22%] flex flex-col gap-4 no-scrollbar">
                 
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-xl font-bold mb-2 text-white border-b border-slate-700 pb-2">{{ data.ticker }}</h2>
-                    <div class="text-3xl font-black text-emerald-400 mb-4">Rp {{ "{:,.0f}".format(data.close) }}</div>
-
-                    <div class="mb-4">
-                        <div class="text-xs text-slate-400 uppercase font-semibold">Prediksi Logis</div>
-                        <div class="text-sm font-medium {{ data.status_color }} mt-1 leading-relaxed">>> {{ data.status_text }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-400 uppercase font-semibold">Strategi / Rekomendasi</div>
-                        <div class="text-sm font-medium text-white mt-1 leading-relaxed">>> {{ data.strategi_text }}</div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider">Status Indikator</h3>
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2 mb-4 uppercase tracking-wider">Status Indikator</h3>
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-sm text-slate-400">RSI (14)</span>
                         <span class="font-bold text-white text-lg">{{ "{:.2f}".format(data.rsi) }}</span>
                     </div>
-                    <div>
-                        <span class="text-sm text-slate-400 block mb-1">MACD Status</span>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold {% if data.cross_type == 'Golden Cross' %}text-green-400{% else %}text-red-400{% endif %}">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-slate-400">MACD</span>
+                        <div class="text-right">
+                            <span class="font-bold text-sm block {% if data.cross_type == 'Golden Cross' %}text-green-400{% else %}text-red-400{% endif %}">
                                 {{ data.cross_type }}
                             </span>
+                            <span class="text-[10px] text-slate-500 block">({{ data.cross_days }} hari lalu)</span>
                         </div>
-                        <span class="text-xs text-slate-500 block mt-1">(Terjadi {{ data.cross_days }} hari yang lalu)</span>
                     </div>
                 </div>
 
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700 h-full flex flex-col">
                     <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2 mb-4 uppercase tracking-wider">Peta Support & Resistance</h3>
                     
                     <div class="mb-4">
@@ -91,12 +96,18 @@
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 relative">
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-emerald-400 font-bold">Support 1 (Dekat)</span>
                             <span class="font-bold text-white">Rp {{ "{:,.0f}".format(data.s1) }}</span>
                         </div>
                         <div class="text-[11px] text-slate-400 mt-1 italic">Area Cicil Beli / Bantalan Pertama</div>
+                        
+                        {% if data.potensi_pantul %}
+                        <div class="text-[11px] text-yellow-400 mt-1 font-medium bg-yellow-400/10 inline-block px-2 py-0.5 rounded border border-yellow-400/20">
+                            ↳ {{ data.potensi_pantul }}
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div>
@@ -110,38 +121,132 @@
 
             </div>
 
-            <div class="col-span-1 lg:col-span-3 bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-700 overflow-hidden" style="height: 650px;">
-                <div class="tradingview-widget-container" style="height: 100%; width: 100%;">
-                    <div id="tradingview_chart" style="height: 100%; width: 100%;"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                    <script type="text/javascript">
-                        new TradingView.widget({
-                            "autosize": true,
-                            "symbol": "{{ data.tv_symbol }}",
-                            "interval": "D",
-                            "timezone": "Asia/Jakarta",
-                            "theme": "dark",
-                            "style": "1",
-                            "locale": "id",
-                            "enable_publishing": false,
-                            "backgroundColor": "rgba(30, 41, 59, 1)",
-                            "gridColor": "rgba(51, 65, 85, 0.5)",
-                            "hide_top_toolbar": false,
-                            "hide_legend": false,
-                            "hide_side_toolbar": false,
-                            "allow_symbol_change": true,
-                            "save_image": true,
-                            "container_id": "tradingview_chart",
-                            "studies": ["MACD@tv-basicstudies", "RSI@tv-basicstudies", "BB@tv-basicstudies"]
-                        });
-                    </script>
+            <div class="w-full lg:w-3/4 xl:w-[78%] flex flex-col gap-4 overflow-hidden">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    
+                    <div class="lg:col-span-2 bg-slate-800 px-4 md:px-5 py-3.5 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-center items-center lg:items-start text-center lg:text-left relative">
+                        
+                        <div class="flex items-center gap-3 mb-1.5 relative">
+                            <h2 class="text-xl font-bold text-slate-300">{{ data.ticker }}</h2>
+                            
+                            <button id="marketToggleBtn" class="flex items-center bg-slate-900/80 hover:bg-slate-700 border border-slate-600 rounded-full px-2.5 py-1 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-slate-500">
+                                <span id="marketDot" class="w-2.5 h-2.5 rounded-full bg-gray-500 mr-2"></span>
+                                <span id="marketBadgeText" class="text-xs font-bold text-slate-300">Cek Pasar</span>
+                            </button>
+
+                            <div id="marketDropdown" class="hidden absolute top-10 left-0 lg:left-auto lg:right-[-120px] z-50 w-72 max-w-[85vw] bg-[#1e222d] border border-slate-600 rounded-lg shadow-2xl p-4 text-left">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span id="ddMarketDot" class="w-4 h-4 rounded-full flex items-center justify-center bg-gray-500 text-[10px] font-bold text-white">-</span>
+                                    <span id="ddMarketTitle" class="font-bold text-white text-base">Memuat...</span>
+                                </div>
+                                <p id="ddMarketDesc" class="text-sm text-slate-300 mb-4 leading-snug">Menghitung zona waktu bursa...</p>
+                                
+                                <div class="flex items-center gap-2">
+                                    <span id="ddDayName" class="text-xs font-bold text-slate-400 uppercase w-10">HARI</span>
+                                    <div class="flex-grow bg-slate-700 h-1.5 rounded-full overflow-hidden flex relative">
+                                        <div class="h-full border-r border-[#1e222d]" style="width: 42.8%;"></div>
+                                        <div class="h-full border-r border-[#1e222d]" style="width: 21.4%;"></div>
+                                        <div class="h-full" style="width: 35.8%;"></div>
+                                        <div id="ddTimeProgress" class="absolute top-0 left-0 h-full bg-emerald-400 transition-all duration-1000" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-between mt-1 pl-12 text-[10px] text-slate-500 font-medium">
+                                    <span>09:00</span>
+                                    <span>16:00</span>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-4 text-center border-t border-slate-700 pt-2">Zona waktu bursa: Jakarta (UTC+7)</div>
+                            </div>
+                        </div>
+
+                        <span class="text-[11px] text-slate-400 uppercase font-semibold mb-1 tracking-wider bg-slate-900 px-2 py-0.5 rounded border border-slate-700 inline-block mt-0.5">Harga Terakhir (Close)</span>
+                        
+                        <div class="flex items-baseline gap-3 mt-0.5">
+                            <div class="text-4xl font-black 
+                                {% if data.prev_close %}
+                                    {% if data.close > data.prev_close %}text-emerald-400
+                                    {% elif data.close < data.prev_close %}text-red-500
+                                    {% else %}text-slate-300{% endif %}
+                                {% else %}
+                                    text-emerald-400
+                                {% endif %}">
+                                Rp {{ "{:,.0f}".format(data.close) }}
+                            </div>
+
+                            {% if data.prev_close %}
+                            <div class="text-sm font-bold flex items-center gap-0.5
+                                {% if data.close > data.prev_close %}text-emerald-400
+                                {% elif data.close < data.prev_close %}text-red-500
+                                {% else %}text-slate-400{% endif %}">
+                                
+                                {% if data.close > data.prev_close %}
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"></path></svg>
+                                {% elif data.close < data.prev_close %}
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
+                                {% else %}
+                                    <span class="mr-1">-</span>
+                                {% endif %}
+                                
+                                {{ "{:,.2f}".format(((data.close - data.prev_close) / data.prev_close) * 100)|replace('-', '') }}%
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if data.prev_close %}
+                        <div class="text-[11px] text-slate-400 mt-1.5 bg-slate-900/40 px-2.5 py-1 rounded-md border border-slate-700/50 inline-block">
+                            Penutupan Kemarin: <span class="font-semibold text-slate-300">Rp {{ "{:,.0f}".format(data.prev_close) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="lg:col-span-3 bg-slate-800 px-4 md:px-5 py-3.5 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-center">
+                        <div class="mb-2">
+                            <span class="text-[11px] text-slate-400 uppercase font-bold block mb-0.5 tracking-wider">Prediksi Logis</span>
+                            <span class="text-base md:text-[17px] font-bold {{ data.status_color }} leading-snug block">{{ data.status_text }}</span>
+                        </div>
+                        <div class="pt-2 border-t border-slate-700/50">
+                            <span class="text-[11px] text-slate-400 uppercase font-bold block mb-0.5 tracking-wider">Strategi Taktikal</span>
+                            <span class="text-[15px] font-medium text-white leading-snug block">{{ data.strategi_text }}</span>
+                        </div>
+                    </div>
+
                 </div>
+
+                <div class="bg-slate-800 p-1.5 md:p-2 rounded-xl shadow-lg border border-slate-700 flex-grow resize-y overflow-hidden w-full" style="min-height: 450px; height: 600px; max-height: 1200px;">
+                    <div class="tradingview-widget-container" style="height: 100%; width: 100%;">
+                        <div id="tradingview_chart" style="height: 100%; width: 100%;"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                            new TradingView.widget({
+                                "autosize": true,
+                                "symbol": "{{ data.tv_symbol }}",
+                                "interval": "D",
+                                "timezone": "Asia/Jakarta",
+                                "theme": "dark",
+                                "style": "1",
+                                "locale": "id",
+                                "enable_publishing": false,
+                                "backgroundColor": "rgba(30, 41, 59, 1)",
+                                "gridColor": "rgba(51, 65, 85, 0.5)",
+                                "hide_top_toolbar": false,
+                                "hide_legend": false,
+                                "hide_side_toolbar": false,
+                                "allow_symbol_change": true,
+                                "save_image": true,
+                                "container_id": "tradingview_chart",
+                                "studies": ["MACD@tv-basicstudies", "RSI@tv-basicstudies", "BB@tv-basicstudies"]
+                            });
+                        </script>
+                    </div>
+                </div>
+
             </div>
 
         </div>
 
-        <div class="mt-6 bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-            <h2 class="text-xl font-bold mb-4 text-white border-b border-slate-700 pb-2">Visualisasi Support & Resistance (100 Hari Terakhir)</h2>
+        <div class="mt-6 bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700 overflow-hidden w-full">
+            <h2 class="text-lg md:text-xl font-bold mb-4 text-white border-b border-slate-700 pb-2">Visualisasi Support & Resistance (100 Hari Terakhir)</h2>
             <div id="snr-chart" style="height: 400px; width: 100%;"></div>
         </div>
 
@@ -149,6 +254,102 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.getElementById('marketToggleBtn');
+            const dropdown = document.getElementById('marketDropdown');
+            if(!toggleBtn) return;
+
+            toggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+
+            function checkMarketStatus() {
+                const now = new Date();
+                const jktTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+                const day = jktTime.getDay();
+                const hours = jktTime.getHours();
+                const minutes = jktTime.getMinutes();
+                const totalMinutes = (hours * 60) + minutes;
+
+                const openTime = 9 * 60; 
+                const breakStart = 12 * 60; 
+                const breakEnd = 13 * 60 + 30; 
+                const closeTime = 16 * 60; 
+
+                const marketDot = document.getElementById('marketDot');
+                const marketBadgeText = document.getElementById('marketBadgeText');
+                const ddTitle = document.getElementById('ddMarketTitle');
+                const ddDesc = document.getElementById('ddMarketDesc');
+                const ddDot = document.getElementById('ddMarketDot');
+                const ddDayName = document.getElementById('ddDayName');
+                const ddProgress = document.getElementById('ddTimeProgress');
+
+                const dayNames = ['MGU', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+                ddDayName.innerText = dayNames[day];
+
+                let status = "Tutup";
+                let colorClass = "bg-gray-500";
+                let iconChar = "-";
+                let descText = "Pasar saat ini sedang tutup. Perdagangan dilanjutkan hari kerja berikutnya.";
+                let progressPercent = 0;
+
+                if (day === 0 || day === 6) {
+                    status = "Pasar tutup (Libur)";
+                    progressPercent = 0;
+                } else {
+                    if (totalMinutes < openTime) {
+                        status = "Pasar Tutup (Pra-pembukaan)";
+                        descText = "Pasar masih tutup. Sesi perdagangan akan segera dimulai pada pukul 09:00 WIB.";
+                        progressPercent = 0;
+                    } else if (totalMinutes >= openTime && totalMinutes < breakStart) {
+                        status = "Pasar Terbuka";
+                        colorClass = "bg-emerald-500 market-open-dot";
+                        iconChar = "O";
+                        descText = "Perdagangan Sesi 1 sedang berjalan.";
+                        progressPercent = ((totalMinutes - openTime) / (closeTime - openTime)) * 100;
+                    } else if (totalMinutes >= breakStart && totalMinutes < breakEnd) {
+                        status = "Pasar Istirahat";
+                        colorClass = "bg-orange-500";
+                        iconChar = "R";
+                        descText = "Saatnya rehat. Pasar sedang istirahat siang dan akan buka kembali jam 13:30 WIB.";
+                        progressPercent = ((totalMinutes - openTime) / (closeTime - openTime)) * 100;
+                    } else if (totalMinutes >= breakEnd && totalMinutes < closeTime) {
+                        status = "Pasar Terbuka";
+                        colorClass = "bg-emerald-500 market-open-dot";
+                        iconChar = "O";
+                        descText = "Perdagangan Sesi 2 sedang berjalan mendekati waktu penutupan.";
+                        progressPercent = ((totalMinutes - openTime) / (closeTime - openTime)) * 100;
+                    } else {
+                        status = "Pasar Tutup";
+                        descText = "Perdagangan hari ini telah berakhir.";
+                        progressPercent = 100;
+                    }
+                }
+
+                marketDot.className = `w-2.5 h-2.5 rounded-full mr-2 ${colorClass}`;
+                marketBadgeText.innerText = status.includes("Terbuka") ? "Buka" : (status.includes("Istirahat") ? "Istirahat" : "Tutup");
+                
+                ddDot.className = `w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-white ${colorClass.replace('market-open-dot', '')}`;
+                ddDot.innerText = iconChar;
+                ddTitle.innerText = status;
+                ddDesc.innerText = descText;
+                
+                let barColor = status.includes("Terbuka") ? "bg-emerald-400" : (status.includes("Istirahat") ? "bg-orange-400" : "bg-gray-500");
+                ddProgress.className = `absolute top-0 left-0 h-full transition-all duration-1000 ${barColor}`;
+                ddProgress.style.width = `${progressPercent}%`;
+            }
+
+            checkMarketStatus();
+            setInterval(checkMarketStatus, 60000);
+        });
+
         {% if data and data.dates %}
         var options = {
             series: [{ name: 'Harga Close', data: {{ data.closes | tojson }} }],

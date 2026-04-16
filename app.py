@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from scipy.signal import argrelextrema
+import math
 
 app = Flask(__name__)
 
@@ -43,26 +44,59 @@ def analyze_stock(ticker, period="6mo"):
     rs = up.ewm(com=13, adjust=False).mean() / down.ewm(com=13, adjust=False).mean()
     df['RSI'] = 100 - (100 / (1 + rs))
 
-    # Kalkulasi S&R
-    n = 10 if len(df) < 60 else 15
+    # --- PERBAIKAN LOGIKA SUPPORT & RESISTANCE ---
+    n = 5 if len(df) < 60 else 7
     df['Local_Max'] = df.iloc[argrelextrema(df['Close'].values, np.greater_equal, order=n)[0]]['Close']
     df['Local_Min'] = df.iloc[argrelextrema(df['Close'].values, np.less_equal, order=n)[0]]['Close']
 
-    resistances = df['Local_Max'].dropna().unique()
-    supports = df['Local_Min'].dropna().unique()
+    resistances = sorted(df['Local_Max'].dropna().unique())
+    supports = sorted(df['Local_Min'].dropna().unique(), reverse=True)
 
     recent_close = float(df['Close'].iloc[-1])
+    prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else recent_close
     recent_rsi = float(df['RSI'].iloc[-1])
 
-    valid_supports = sorted([s for s in supports if s < recent_close], reverse=True)
-    support_1 = float(valid_supports[0]) if len(valid_supports) > 0 else float(df['Close'].min())
-    support_2 = float(valid_supports[1]) if len(valid_supports) > 1 else support_1 * 0.95
+    # 1. Aturan Batas Bawah Gocap (Cegah GOTO jadi 48)
+    hist_min = float(df['Close'].min())
+    idx_floor = 50.0 if hist_min >= 50.0 else 1.0 
 
+    # 2. Filter Jarak Support (Cegah S1 = 101 dan S2 = 100)
+    valid_supports = [s for s in supports if s < recent_close]
+    filtered_supports = []
+    for s in valid_supports:
+        if not filtered_supports:
+            filtered_supports.append(s)
+        else:
+            # Pastikan jarak antar support minimal 2.5% agar tidak numpuk
+            if (filtered_supports[-1] - s) / filtered_supports[-1] >= 0.025: 
+                filtered_supports.append(s)
+
+    # Set S1 dan S2 menggunakan data yang sudah disaring
+    support_1 = max(float(filtered_supports[0]), idx_floor) if len(filtered_supports) > 0 else hist_min
+    
+    if len(filtered_supports) > 1:
+        support_2 = max(float(filtered_supports[1]), idx_floor)
+    else:
+        support_2 = hist_min if hist_min < support_1 else max(support_1 * 0.9, idx_floor)
+
+    # 3. Prediksi Potensi Pantulan (Shadow / Jarum Bawah)
+    # Menghitung volatilitas harian (High - Low) selama 14 hari terakhir
+    avg_range = (df['High'].tail(14) - df['Low'].tail(14)).mean()
+    potensi_pantul = support_1 - avg_range
+    potensi_pantul = math.floor(potensi_pantul) # Bulatkan ke bawah
+
+    # Jika potensi pantulan tembus 50 (gocap) atau terlalu dekat dengan S1 (< 1%), Sembunyikan.
+    if potensi_pantul <= idx_floor or (support_1 - potensi_pantul) < (support_1 * 0.01):
+        potensi_pantul_text = None
+    else:
+        potensi_pantul_text = f"Potensi jarum/pantulan ke Rp {potensi_pantul:,.0f}"
+
+    # Set Resistance
     valid_resistances = sorted([r for r in resistances if r > recent_close])
     resis_1 = float(valid_resistances[0]) if len(valid_resistances) > 0 else float(df['Close'].max())
     resis_2 = float(valid_resistances[1]) if len(valid_resistances) > 1 else resis_1 * 1.05
 
-    # --- LOGIKA KESIMPULAN BARU (Sesuai Request) ---
+    # --- LOGIKA KESIMPULAN ---
     if cross_type == "Golden Cross" and cross_days <= 2:
         status_text = "SANGAT BAGUS. Baru saja Golden Cross. Boleh mulai masuk (Buy on Breakout)."
         status_color = "text-green-400"
@@ -72,7 +106,7 @@ def analyze_stock(ticker, period="6mo"):
     elif cross_type == "Golden Cross" and cross_days > 5:
         status_text = "TERLAMBAT. Sudah lama naik. Lebih baik tunggu koreksi ke Support 1 atau tunggu sinyal MACD baru."
         status_color = "text-orange-400"
-    else: # Death Cross
+    else:
         status_text = "BAHAYA. Sedang fase koreksi. Tunggu harga memantul di Support 1 atau Support 2 sebelum beli."
         status_color = "text-red-400"
 
@@ -83,14 +117,14 @@ def analyze_stock(ticker, period="6mo"):
     else:
         strategi_text = "Harga berada di area tengah. Wait & See."
 
-    # Format untuk TradingView (Menghilangkan .JK dan mengganti menjadi format IDX)
+    # Format untuk TradingView
     tv_symbol = ticker.replace('.JK', '')
     if tv_symbol == ticker:
         tv_market = tv_symbol
     else:
         tv_market = f"IDX:{tv_symbol}"
 
-    # Untuk chart ApexCharts (100 hari)
+    # Chart Apex
     df_chart = df.tail(100)
     dates = df_chart.index.strftime('%Y-%m-%d').tolist()
     closes = [float(x) for x in df_chart['Close'].tolist()]
@@ -99,11 +133,13 @@ def analyze_stock(ticker, period="6mo"):
         "ticker": ticker.upper(),
         "tv_symbol": tv_market,
         "close": recent_close,
+        "prev_close": prev_close,
         "rsi": recent_rsi,
-        "cross_type": cross_type, # Tambahan untuk Frontend
-        "cross_days": cross_days, # Tambahan untuk Frontend
+        "cross_type": cross_type,
+        "cross_days": cross_days,
         "r1": resis_1, "r2": resis_2,
         "s1": support_1, "s2": support_2,
+        "potensi_pantul": potensi_pantul_text, # Variabel baru ke UI
         "status_text": status_text,
         "status_color": status_color,
         "strategi_text": strategi_text,
