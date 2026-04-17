@@ -8,62 +8,86 @@ import math
 app = Flask(__name__)
 
 def analyze_stock(ticker, period="6mo"):
-    # Kita buat object Ticker dulu untuk fallback nanti
     ticker_obj = yf.Ticker(ticker)
-    
-    # Download data historis harian untuk Analisa
     df = yf.download(ticker, period=period, progress=False)
     
     if df.empty:
         return {"error": f"Data saham {ticker} tidak ditemukan."}
     
-    # 1. BUKA BUNGKUS KOLOM DULU (Flatten MultiIndex)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.droplevel(1)
 
-    # 2. BERSIHKAN DATA KOSONG (NaN)
     if 'Close' in df.columns:
         df = df.dropna(subset=['Close'])
     else:
         return {"error": f"Format data saham {ticker} dari Yahoo Finance tidak dikenali."}
     
-    # Pengaman tambahan: Jika setelah dibersihkan datanya habis
     if df.empty:
         return {"error": f"Data harga saham {ticker} tidak valid atau sedang tidak tersedia."}
 
-    # --- FITUR BARU: Ambil Harga LIVE (Memaksa tembus cache lelet Yahoo) ---
+    # =================================================================
+    # FITUR BARU: Ambil Harga LIVE + EKSTRAK TANGGAL YANG AKURAT
+    # =================================================================
     try:
-        # Trik: Paksa ambil data pergerakan 15 menitan hari ini
         df_live = yf.download(ticker, period="1d", interval="15m", progress=False)
-        
         if not df_live.empty:
             if isinstance(df_live.columns, pd.MultiIndex):
                 df_live.columns = df_live.columns.droplevel(1)
             if 'Close' in df_live.columns:
                 df_live = df_live.dropna(subset=['Close'])
             
-            # Ambil harga paling ujung dari data intraday
             current_price = float(df_live['Close'].iloc[-1])
-            hist_last = float(df['Close'].iloc[-1]) # Data harian terakhir
+            current_date = df_live.index[-1].strftime('%d-%m-%Y') # Tanggal hari ini
             
-            # Jika harga live beda dengan data harian terakhir, 
-            # berarti Yahoo harian telat 1 hari. Kita jadikan data harian terakhir sbg "kemarin"
+            hist_last = float(df['Close'].iloc[-1])
+            hist_last_date = df.index[-1].strftime('%d-%m-%Y')
+            
+            # Jika harga live beda dengan data harian, berarti Yahoo telat
             if current_price != hist_last:
                 prev_close_ui = hist_last
+                prev_date_1 = hist_last_date
+                
+                prev_close_2 = float(df['Close'].iloc[-2]) if len(df) > 1 else hist_last
+                prev_date_2 = df.index[-2].strftime('%d-%m-%Y') if len(df) > 1 else hist_last_date
             else:
+                # Jika sudah sinkron
+                current_date = hist_last_date
+                
                 prev_close_ui = float(df['Close'].iloc[-2]) if len(df) > 1 else hist_last
+                prev_date_1 = df.index[-2].strftime('%d-%m-%Y') if len(df) > 1 else hist_last_date
+                
+                prev_close_2 = float(df['Close'].iloc[-3]) if len(df) > 2 else prev_close_ui
+                prev_date_2 = df.index[-3].strftime('%d-%m-%Y') if len(df) > 2 else prev_date_1
         else:
-            # Fallback kalau gagal ambil data intraday
+            # Fallback fast_info
             current_price = float(ticker_obj.fast_info.lastPrice)
             prev_close_ui = float(ticker_obj.fast_info.previousClose)
             
+            hist_last = float(df['Close'].iloc[-1])
+            if current_price != hist_last:
+                current_date = "Live Update"
+                prev_date_1 = df.index[-1].strftime('%d-%m-%Y')
+                prev_close_2 = float(df['Close'].iloc[-2]) if len(df) > 1 else hist_last
+                prev_date_2 = df.index[-2].strftime('%d-%m-%Y') if len(df) > 1 else prev_date_1
+            else:
+                current_date = df.index[-1].strftime('%d-%m-%Y')
+                prev_date_1 = df.index[-2].strftime('%d-%m-%Y') if len(df) > 1 else current_date
+                prev_close_2 = float(df['Close'].iloc[-3]) if len(df) > 2 else prev_close_ui
+                prev_date_2 = df.index[-3].strftime('%d-%m-%Y') if len(df) > 2 else prev_date_1
+                
     except Exception:
-        # Fallback terakhir kalau Yahoo benar-benar down
+        # Fallback Terakhir
         current_price = float(df['Close'].iloc[-1])
+        current_date = df.index[-1].strftime('%d-%m-%Y')
+        
         prev_close_ui = float(df['Close'].iloc[-2]) if len(df) > 1 else current_price
-    # ---------------------------------------------------------------
+        prev_date_1 = df.index[-2].strftime('%d-%m-%Y') if len(df) > 1 else current_date
+        
+        prev_close_2 = float(df['Close'].iloc[-3]) if len(df) > 2 else prev_close_ui
+        prev_date_2 = df.index[-3].strftime('%d-%m-%Y') if len(df) > 2 else prev_date_1
+    # =================================================================
 
-    # 1. Kalkulasi MACD (TETAP PAKAI DATA HISTORIS df['Close'])
+    # 1. Kalkulasi MACD 
     df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
     df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = df['EMA12'] - df['EMA26']
@@ -91,7 +115,7 @@ def analyze_stock(ticker, period="6mo"):
     rs = up.ewm(com=13, adjust=False).mean() / down.ewm(com=13, adjust=False).mean()
     df['RSI'] = 100 - (100 / (1 + rs))
 
-    # 3. Bollinger Bands Squeeze (Deteksi Sideways)
+    # 3. Bollinger Bands Squeeze
     df['SMA20'] = df['Close'].rolling(window=20).mean()
     df['STD20'] = df['Close'].rolling(window=20).std()
     df['Upper_BB'] = df['SMA20'] + (df['STD20'] * 2)
@@ -111,7 +135,6 @@ def analyze_stock(ticker, period="6mo"):
     resistances = sorted(df['Local_Max'].dropna().unique())
     supports = sorted(df['Local_Min'].dropna().unique(), reverse=True)
 
-    # recent_close ini khusus buat ngitung analisa, biarkan dari data historis df
     recent_close = float(df['Close'].iloc[-1])
     recent_rsi = float(df['RSI'].iloc[-1])
 
@@ -146,7 +169,44 @@ def analyze_stock(ticker, period="6mo"):
     resis_1 = float(valid_resistances[0]) if len(valid_resistances) > 0 else float(df['Close'].max())
     resis_2 = float(valid_resistances[1]) if len(valid_resistances) > 1 else resis_1 * 1.05
 
-    # 5. LOGIKA KESIMPULAN (Berpatokan pada recent_close analisa)
+    # 5. SISTEM SKORING PROBABILITAS NAIK/TURUN
+    bull_score = 50
+    bear_score = 50
+
+    if recent_rsi < 30: 
+        bull_score += 20; bear_score -= 20
+    elif recent_rsi < 45: 
+        bull_score += 10; bear_score -= 10
+    elif recent_rsi > 70: 
+        bull_score -= 20; bear_score += 20
+    elif recent_rsi > 60: 
+        bull_score -= 10; bear_score += 10
+
+    if cross_type == "Golden Cross" and cross_days <= 5:
+        bull_score += 15; bear_score -= 15
+    elif cross_type == "Death Cross" and cross_days <= 5:
+        bull_score -= 15; bear_score += 15
+
+    if 'Volume' in df.columns and len(df) > 5:
+        avg_vol_5d = df['Volume'].tail(5).mean()
+        today_vol = float(df['Volume'].iloc[-1])
+        prev_close_hist = float(df['Close'].iloc[-2])
+        
+        if today_vol > (avg_vol_5d * 1.5):
+            if recent_close > prev_close_hist: 
+                bull_score += 15; bear_score -= 15
+            elif recent_close < prev_close_hist: 
+                bull_score -= 15; bear_score += 15
+
+    if (recent_close - support_1) / recent_close < 0.03: 
+        bull_score += 15; bear_score -= 15
+    elif (resis_1 - recent_close) / recent_close < 0.03: 
+        bull_score -= 15; bear_score += 15
+
+    bull_score = max(10, min(90, bull_score))
+    bear_score = 100 - bull_score
+
+    # 6. LOGIKA KESIMPULAN TEXT
     if is_squeeze:
         status_text = "AWAS VOLATILITAS! Saham sedang jenuh sideways (BB Squeeze). Energi sedang dikumpulkan. Bersiap untuk Breakout besar dalam waktu dekat!"
         status_color = "text-purple-400"
@@ -185,13 +245,23 @@ def analyze_stock(ticker, period="6mo"):
     return {
         "ticker": ticker.upper(),
         "tv_symbol": tv_market,
-        "close": recent_close, # Ini EOD untuk jaga-jaga
-        "current_price": current_price, # INI YANG TAMPIL DI WEB
-        "prev_close_ui": prev_close_ui, # INI BUAT NGITUNG PERSEN DI WEB
+        "close": recent_close,
+        
+        # VARIABEL TANGGAL & HARGA BARU KE HTML
+        "current_price": current_price, 
+        "current_date": current_date,
+        "prev_close_ui": prev_close_ui,
+        "prev_date_1": prev_date_1,
+        "prev_close_2": prev_close_2,
+        "prev_date_2": prev_date_2,
+        # ------------------------------------
+        
         "rsi": recent_rsi,
         "cross_type": cross_type,
         "cross_days": cross_days,
         "is_squeeze": is_squeeze, 
+        "potensi_naik": int(bull_score),
+        "potensi_turun": int(bear_score),
         "r1": resis_1, "r2": resis_2,
         "s1": support_1, "s2": support_2,
         "potensi_pantul": potensi_pantul_text,

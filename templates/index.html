@@ -141,7 +141,6 @@
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
                     
                     <div class="lg:col-span-2 bg-slate-800 px-4 md:px-5 py-3.5 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-center items-center lg:items-start text-center lg:text-left relative">
-                        
                         <div class="flex items-center gap-3 mb-1.5 relative">
                             <h2 class="text-xl font-bold text-slate-300">{{ data.ticker }}</h2>
                             
@@ -175,7 +174,9 @@
                             </div>
                         </div>
 
-                        <span class="text-[11px] text-slate-400 uppercase font-semibold mb-1 tracking-wider bg-slate-900 px-2 py-0.5 rounded border border-slate-700 inline-block mt-0.5">Harga Terakhir (Close)</span>
+                        <span class="text-[11px] text-slate-400 uppercase font-semibold mb-1 tracking-wider bg-slate-900 px-2 py-0.5 rounded border border-slate-700 inline-block mt-0.5">
+                            Harga Saat Ini ({{ data.current_date }})
+                        </span>
                         
                         <div class="flex items-baseline gap-3 mt-0.5">
                             <div class="text-4xl font-black 
@@ -209,8 +210,16 @@
                         </div>
 
                         {% if data.prev_close_ui %}
-                        <div class="text-[11px] text-slate-400 mt-1.5 bg-slate-900/40 px-2.5 py-1 rounded-md border border-slate-700/50 inline-block">
-                            Penutupan Kemarin: <span class="font-semibold text-slate-300">Rp {{ "{:,.0f}".format(data.prev_close_ui) }}</span>
+                        <div class="flex flex-col gap-1.5 mt-2.5">
+                            <div class="text-[11px] text-slate-400 bg-slate-900/40 px-2.5 py-1 rounded-md border border-slate-700/50 inline-block w-fit">
+                                <span class="font-medium">Tutup Kemarin ({{ data.prev_date_1 }}):</span> <span class="font-semibold text-slate-300">Rp {{ "{:,.0f}".format(data.prev_close_ui) }}</span>
+                            </div>
+                            
+                            {% if data.prev_close_2 %}
+                            <div class="text-[10px] text-slate-500 bg-slate-900/20 px-2.5 py-1 rounded-md border border-slate-800/50 inline-block w-fit">
+                                <span>Tutup Lusa ({{ data.prev_date_2 }}):</span> <span class="font-medium text-slate-400">Rp {{ "{:,.0f}".format(data.prev_close_2) }}</span>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -218,11 +227,24 @@
                     <div class="lg:col-span-3 bg-slate-800 px-4 md:px-5 py-3.5 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-center">
                         <div class="mb-2">
                             <span class="text-[11px] text-slate-400 uppercase font-bold block mb-0.5 tracking-wider">Prediksi Logis</span>
-                            <span class="text-base md:text-[17px] font-bold {{ data.status_color }} leading-snug block">{{ data.status_text }}</span>
+                            <span class="text-base md:text-[15px] font-bold {{ data.status_color }} leading-snug block">{{ data.status_text }}</span>
                         </div>
-                        <div class="pt-2 border-t border-slate-700/50">
+
+                        <div class="my-2.5 bg-slate-900/50 p-2 rounded border border-slate-700/50">
+                            <div class="flex justify-between text-[10px] font-bold mb-1.5 uppercase tracking-wide">
+                                <span class="text-emerald-400">Potensi Naik: {{ data.potensi_naik }}%</span>
+                                <span class="text-slate-400">Skor Teknika</span>
+                                <span class="text-red-400">Potensi Turun: {{ data.potensi_turun }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-2 flex overflow-hidden">
+                                <div class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-2 transition-all duration-1000" style="width: {{ data.potensi_naik }}%"></div>
+                                <div class="bg-gradient-to-l from-red-600 to-red-400 h-2 transition-all duration-1000" style="width: {{ data.potensi_turun }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="pt-1.5 border-t border-slate-700/50">
                             <span class="text-[11px] text-slate-400 uppercase font-bold block mb-0.5 tracking-wider">Strategi Taktikal</span>
-                            <span class="text-[15px] font-medium text-white leading-snug block">{{ data.strategi_text }}</span>
+                            <span class="text-[14px] font-medium text-white leading-snug block">{{ data.strategi_text }}</span>
                         </div>
                     </div>
 
